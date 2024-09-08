@@ -3,6 +3,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import formatDate from '@/utils/formDate';
 import styled from '@emotion/styled';
+import { PostgrestError } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -62,6 +63,18 @@ interface DiaryEntry {
   updated_at: string;
 }
 
+// 타입 가드 함수 정의
+function isPostgrestError(error: unknown): error is PostgrestError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    'details' in error &&
+    'hint' in error &&
+    'message' in error
+  );
+}
+
 export default function DiaryViewPage({ id }: { id: string }) {
   const [diary, setDiary] = useState<DiaryEntry | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,11 +106,16 @@ export default function DiaryViewPage({ id }: { id: string }) {
         } else {
           setError('다이어리를 찾을 수 없습니다.');
         }
-      } catch (error: any) {
-        setError(
-          '다이어리를 불러오는 중 오류가 발생했습니다: ' + error.message
-        );
-        console.error('Error fetching diary:', error);
+      } catch (error) {
+        if (isPostgrestError(error)) {
+          setError(`데이터베이스 오류: ${error.message}`);
+        } else if (error instanceof Error) {
+          setError(
+            `다이어리를 불러오는 중 오류가 발생했습니다: ${error.message}`
+          );
+        } else {
+          setError('알 수 없는 오류가 발생했습니다.');
+        }
       }
     };
 

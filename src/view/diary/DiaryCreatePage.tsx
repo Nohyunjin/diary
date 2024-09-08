@@ -1,5 +1,7 @@
+import Snackbar from '@/components/SnackBar';
 import { supabase } from '@/lib/supabaseClient';
 import styled from '@emotion/styled';
+import { PostgrestError } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 
@@ -64,16 +66,38 @@ const Button = styled.button`
   }
 `;
 
+// 타입 가드 함수 정의
+function isPostgrestError(error: unknown): error is PostgrestError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    'details' in error &&
+    'hint' in error &&
+    'message' in error
+  );
+}
+
 export default function DiaryCreatePage() {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [content, setContent] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState({
+    show: false,
+    message: '',
+    type: 'info' as 'success' | 'error' | 'info',
+  });
   const router = useRouter();
+
+  const showSnackbar = (
+    message: string,
+    type: 'success' | 'error' | 'info'
+  ) => {
+    setSnackbar({ show: true, message, type });
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
 
     try {
       const {
@@ -84,7 +108,7 @@ export default function DiaryCreatePage() {
         throw new Error('로그인이 필요합니다.');
       }
 
-      const { data, error } = await supabase.from('diary_entries').insert([
+      const { error } = await supabase.from('diary_entries').insert([
         {
           user_id: user.id,
           title,
@@ -96,11 +120,13 @@ export default function DiaryCreatePage() {
 
       if (error) throw error;
 
-      console.log('다이어리 항목 저장 성공:', data);
       router.push('/diary'); // 목록 페이지로 리다이렉트
-    } catch (error: any) {
-      setError(error.message);
-      console.error('다이어리 항목 저장 중 오류 발생:', error);
+    } catch (error) {
+      if (isPostgrestError(error)) {
+        showSnackbar(`데이터베이스 오류: ${error.message}`, 'error');
+      } else {
+        showSnackbar('알 수 없는 오류가 발생했습니다.', 'error');
+      }
     }
   };
 
@@ -139,6 +165,12 @@ export default function DiaryCreatePage() {
         </InputGroup>
         <Button type='submit'>저장하기</Button>
       </Form>
+      <Snackbar
+        show={snackbar.show}
+        message={snackbar.message}
+        type={snackbar.type}
+        onClose={() => setSnackbar((prev) => ({ ...prev, show: false }))}
+      />
     </PageContainer>
   );
 }

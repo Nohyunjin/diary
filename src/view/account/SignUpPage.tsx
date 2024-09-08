@@ -2,6 +2,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { css } from '@emotion/react';
 import styled from '@emotion/styled';
+import { AuthError } from '@supabase/supabase-js';
 import React, { useEffect, useState } from 'react';
 
 const pageStyle = css`
@@ -99,14 +100,18 @@ export default function SignUpPage() {
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: email,
         password: password,
       });
       if (error) throw error;
       alert('회원가입이 완료되었습니다. 이메일을 확인해주세요.');
     } catch (error) {
-      setError(error.message);
+      if (error instanceof AuthError) {
+        setError(error.message);
+      } else if (error instanceof Error) {
+        setError(error.message);
+      }
     }
   };
 

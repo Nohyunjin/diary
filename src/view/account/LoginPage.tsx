@@ -2,6 +2,7 @@
 import Snackbar from '@/components/SnackBar';
 import { supabase } from '@/lib/supabaseClient';
 import styled from '@emotion/styled';
+import { AuthError } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
@@ -105,7 +106,7 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
       });
@@ -113,21 +114,25 @@ export default function LoginPage() {
       showSnackbar('로그인 성공!', 'success');
       setTimeout(() => router.push('/diary'), 1000);
     } catch (error) {
-      if (error.message === 'Email not confirmed') {
-        showSnackbar(
-          '이메일 주소가 확인되지 않았습니다. 이메일을 확인해주세요.',
-          'info'
-        );
-        await handleResendConfirmationEmail();
+      if (error instanceof AuthError) {
+        if (error.message === 'Email not confirmed') {
+          showSnackbar(
+            '이메일 주소가 확인되지 않았습니다. 이메일을 확인해주세요.',
+            'info'
+          );
+          await handleResendConfirmationEmail();
+        } else {
+          showSnackbar(error.message, 'error');
+        }
       } else {
-        showSnackbar(error.message, 'error');
+        showSnackbar('알 수 없는 오류가 발생했습니다.', 'error');
       }
     }
   };
 
   const handleResendConfirmationEmail = async () => {
     try {
-      const { data, error } = await supabase.auth.resend({
+      const { error } = await supabase.auth.resend({
         type: 'signup',
         email: email,
       });

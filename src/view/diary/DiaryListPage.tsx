@@ -114,7 +114,7 @@ export default function DiaryListPage() {
     fetchDiaries();
   }, [router]);
 
-  const handleDiaryClick = (id: number) => {
+  const handleDiaryClick = (id: string) => {
     router.push(`/diary/${id}`);
   };
 
