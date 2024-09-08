@@ -2,7 +2,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { css } from '@emotion/react';
 import styled from '@emotion/styled';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const pageStyle = css`
   display: flex;
@@ -65,20 +65,39 @@ const Button = styled.button`
   &:hover {
     background-color: #2563eb;
   }
+
+  &:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+  }
 `;
 
 const ErrorMessage = styled.p`
-  color: red;
+  color: #ef4444;
   font-size: 0.875rem;
+  margin-top: 0.25rem;
 `;
 
-const SignUpPage: React.FC = () => {
+export default function SignUpPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isPasswordMatch, setIsPasswordMatch] = useState(true);
+
+  useEffect(() => {
+    setIsPasswordMatch(password === confirmPassword);
+  }, [password, confirmPassword]);
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
+
+    if (!isPasswordMatch) {
+      setError('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
     try {
       const { data, error } = await supabase.auth.signUp({
         email: email,
@@ -116,12 +135,25 @@ const SignUpPage: React.FC = () => {
               required
             />
           </InputGroup>
+          <InputGroup>
+            <Label htmlFor='confirmPassword'>비밀번호 확인</Label>
+            <Input
+              id='confirmPassword'
+              type='password'
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+            {!isPasswordMatch && (
+              <ErrorMessage>비밀번호가 일치하지 않습니다.</ErrorMessage>
+            )}
+          </InputGroup>
           {error && <ErrorMessage>{error}</ErrorMessage>}
-          <Button type='submit'>회원가입</Button>
+          <Button type='submit' disabled={!isPasswordMatch}>
+            회원가입
+          </Button>
         </Form>
       </Card>
     </div>
   );
-};
-
-export default SignUpPage;
+}

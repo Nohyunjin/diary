@@ -1,6 +1,9 @@
 /** @jsxImportSource @emotion/react */
+import Snackbar from '@/components/SnackBar';
+import { supabase } from '@/lib/supabaseClient';
 import styled from '@emotion/styled';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 
 const PageContainer = styled.div`
@@ -82,14 +85,63 @@ const StyledLink = styled(Link)`
   }
 `;
 
-const LoginPage: React.FC = () => {
+export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [snackbar, setSnackbar] = useState({
+    show: false,
+    message: '',
+    type: 'info' as 'success' | 'error' | 'info',
+  });
+  const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const showSnackbar = (
+    message: string,
+    type: 'success' | 'error' | 'info'
+  ) => {
+    setSnackbar({ show: true, message, type });
+  };
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('로그인 시도:', { email, password });
-    // 여기에 실제 로그인 로직을 구현하세요
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+      if (error) throw error;
+      showSnackbar('로그인 성공!', 'success');
+      setTimeout(() => router.push('/diary'), 1000);
+    } catch (error) {
+      if (error.message === 'Email not confirmed') {
+        showSnackbar(
+          '이메일 주소가 확인되지 않았습니다. 이메일을 확인해주세요.',
+          'info'
+        );
+        await handleResendConfirmationEmail();
+      } else {
+        showSnackbar(error.message, 'error');
+      }
+    }
+  };
+
+  const handleResendConfirmationEmail = async () => {
+    try {
+      const { data, error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+      if (error) throw error;
+      showSnackbar(
+        '확인 이메일을 다시 전송했습니다. 이메일을 확인해주세요.',
+        'info'
+      );
+    } catch (error) {
+      showSnackbar(
+        '확인 이메일 재전송에 실패했습니다. 나중에 다시 시도해주세요.',
+        'error'
+      );
+    }
   };
 
   return (
@@ -98,10 +150,10 @@ const LoginPage: React.FC = () => {
         <Title>로그인</Title>
         <Form onSubmit={handleLogin}>
           <InputGroup>
-            <Label htmlFor='email'>사용자 이름</Label>
+            <Label htmlFor='email'>이메일</Label>
             <Input
               id='email'
-              type='text'
+              type='email'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -123,8 +175,12 @@ const LoginPage: React.FC = () => {
           계정이 없으신가요? <StyledLink href='/signup'>회원가입</StyledLink>
         </SignUpLink>
       </Card>
+      <Snackbar
+        show={snackbar.show}
+        message={snackbar.message}
+        type={snackbar.type}
+        onClose={() => setSnackbar((prev) => ({ ...prev, show: false }))}
+      />
     </PageContainer>
   );
-};
-
-export default LoginPage;
+}
