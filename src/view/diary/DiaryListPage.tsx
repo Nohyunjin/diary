@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import formatDate from '@/utils/formDate';
 import styled from '@emotion/styled';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -130,7 +131,7 @@ export default function DiaryListPage() {
         {diaries.map((diary) => (
           <DiaryItem key={diary.id} onClick={() => handleDiaryClick(diary.id)}>
             <DiaryTitle>{diary.title}</DiaryTitle>
-            <DiaryDate>{new Date(diary.date).toLocaleDateString()}</DiaryDate>
+            <DiaryDate>{formatDate(diary.created_at)}</DiaryDate>
           </DiaryItem>
         ))}
       </DiaryList>
