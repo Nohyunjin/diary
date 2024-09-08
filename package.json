@@ -12,13 +12,14 @@
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@supabase/supabase-js": "^2.45.3",
+    "dayjs": "^1.11.13",
     "next": "14.2.8",
     "react": "^18",
     "react-dom": "^18",
     "react-router-dom": "^6.26.1"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^20.16.5",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
