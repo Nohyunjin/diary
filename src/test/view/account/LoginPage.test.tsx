@@ -1,22 +1,34 @@
-import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import LoginPage from '../../../view/account/LoginPage';
-import { mockUseRouter } from '../../mocks/nextRouter';
-import { mockSupabase } from '../../mocks/supabaseMock';
-
 // Next.js의 useRouter를 모킹합니다.
 jest.mock('next/navigation', () => ({
   useRouter: () => mockUseRouter,
 }));
 
-// Supabase 클라이언트를 모킹합니다.
-jest.mock('../../../lib/supabaseClient.ts', () => mockSupabase);
+const mockSignInWithPassword = jest.fn();
+jest.mock('@/lib/supabaseClient', () => ({
+  supabase: {
+    auth: {
+      signInWithPassword: mockSignInWithPassword,
+    },
+  },
+}));
 
 // Snackbar 컴포넌트를 모킹합니다.
 jest.mock('../../../components/SnackBar.tsx', () => ({
   __esModule: true,
   default: jest.fn(() => null),
 }));
+
+const mockPush = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
+import '@testing-library/jest-dom';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import LoginPage from '../../../view/account/LoginPage';
+import { mockUseRouter } from '../../mocks/nextRouter';
 
 describe('LoginPage', () => {
   beforeEach(() => {
@@ -26,9 +38,11 @@ describe('LoginPage', () => {
   it('renders the login form correctly', () => {
     render(<LoginPage />);
 
-    expect(screen.getByText('로그인')).toBeInTheDocument();
+    // 제목으로 "로그인" 텍스트를 찾습니다
+    expect(screen.getByRole('heading', { name: '로그인' })).toBeInTheDocument();
     expect(screen.getByLabelText('이메일')).toBeInTheDocument();
     expect(screen.getByLabelText('비밀번호')).toBeInTheDocument();
+    // 버튼으로 "로그인" 텍스트를 찾습니다
     expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument();
     expect(screen.getByText('계정이 없으신가요?')).toBeInTheDocument();
     expect(screen.getByText('회원가입')).toBeInTheDocument();
@@ -48,7 +62,7 @@ describe('LoginPage', () => {
   });
 
   it('calls handleLogin and redirects on successful login', async () => {
-    mockSupabase.supabase.auth.signInWithPassword.mockResolvedValue({
+    mockSignInWithPassword.mockResolvedValue({
       error: null,
     });
 
@@ -63,9 +77,7 @@ describe('LoginPage', () => {
     fireEvent.click(loginButton);
 
     await waitFor(() => {
-      expect(
-        mockSupabase.supabase.auth.signInWithPassword
-      ).toHaveBeenCalledWith({
+      expect(mockSignInWithPassword).toHaveBeenCalledWith({
         email: 'test@example.com',
         password: 'password123',
       });
@@ -73,14 +85,14 @@ describe('LoginPage', () => {
 
     await waitFor(
       () => {
-        expect(mockUseRouter.push).toHaveBeenCalledWith('/diary');
+        expect(mockPush).toHaveBeenCalledWith('/diary');
       },
       { timeout: 2000 }
     );
   });
 
   it('shows error message on login failure', async () => {
-    mockSupabase.supabase.auth.signInWithPassword.mockRejectedValue(
+    mockSignInWithPassword.mockRejectedValue(
       new Error('Invalid login credentials')
     );
 
@@ -94,8 +106,15 @@ describe('LoginPage', () => {
     fireEvent.change(passwordInput, { target: { value: 'wrongpassword' } });
     fireEvent.click(loginButton);
 
-    await waitFor(() => {
-      expect(screen.getByText('Invalid login credentials')).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        const snackbar = screen.getByTestId('snackbar');
+        expect(snackbar).toBeInTheDocument();
+        expect(snackbar).toHaveTextContent('Invalid login credentials');
+      },
+      { timeout: 2000 }
+    );
   });
+
+  expect(mockPush).not.toHaveBeenCalled();
 });
